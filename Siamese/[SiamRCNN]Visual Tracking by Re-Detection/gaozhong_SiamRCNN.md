@@ -33,9 +33,8 @@
    - $$ unary(a_i) =\sum_{start}^{end}{w_{ff} ff\_score(a_i,t)+(1-w_{ff}) ff\_tracklet\_score(a_i,t)} $$
      - $$ff\_score$$指和第一帧的gt进行re-detection的得分；
      - $$ff\_tracklet\_score$$指和第一帧的gt所在tracklet的最后一帧进行re-detection的得分。
-- $$ loc\_socre(a_i,a_j) = -|end\_bbox(a_i)-start_bbox(a_j)|_1 $$
+- ​	$$ loc\_socre(a_i,a_j) = -|end\_bbox(a_i)-start_bbox(a_j)|_1 $$
       - 指连续的tracklet(由于遮挡等原因而中断)间$$x,y,w,h$$的L1距离。
-  
 4. Tracklet Dynamic Programming Algorithm (TDPA)
    同时跟踪所有潜在的目标物体，包括distractor objects。TDPA 保持了一组 tracklets，包含start time,  end time和detections，每个detection都包含bounding box, re-dection score和RoI-aligned features。
    
@@ -48,5 +47,5 @@
 2. 新的负样本采样方法
    - 传统 Faster RCNN: 用 RPN 来采样得到negative examples(数量不足);
    - Embedding Network: PReMVOS使用batch-hard triplet loss先在coco的各个类别上进行训练，然后再在YouTube-VOS上进行fine-tuning，从而将gt bbox 中的物体映射为 embedding vector;
-   - Index Structure: 构建索引结构来寻找在embedding spqce中的最近邻；
+   - Index Structure: 构建索引结构来寻找在embedding space中的最近邻；
    - 随机选择 video 和 object，然后随机选择 reference 和 target frame，检索 10000 个最近邻 reference box 并从中随机抽取100 个作为 negative training examples。
