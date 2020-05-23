@@ -14,7 +14,34 @@
 2. 增量学习逻辑
    - 引入增量学习：$$ q = argmax((\dfrac{\sum_{t=1}^T\beta_t\varphi(z_t)}{\sum_{t=1}^T\beta_t}- \hat\alpha\dfrac{\sum_{t=1}^T\beta_t\sum_{i=1}^N\alpha_i\varphi(d_i)}{\sum_{t=1}^T\beta_t\sum_{i=1}^N\alpha_i})\star\varphi(x)) $$
    - 式中超参数$\beta_t$指学习率，通过这种方式逐帧累加目标模板和干扰模板。
-
+3. SiamRPNBIG
+   - Backbone
+       - 在SiamRPN的基础上扩大了搜索区域(255→271)和各层通道数(256→512)
+       - 特征提取：self.featureExtract 
+       - 模板分支：self.conv_r1 坐标回归，self.conv_cls1 分类
+       - 检测分支：self.conv_r2 坐标回归，self.conv_cls2 分类
+       - self.regress_adjust 文中没细说 看名字是reg的微调 1x1卷积
+   - Template
+       ```Python
+		def temple(self, z):
+			z_f = self.featureExtract(z)
+			r1_kernel_raw = self.conv_r1(z_f)
+			cls1_kernel_raw = self.conv_cls1(z_f)
+			kernel_size = r1_kernel_raw.data.size()[-1]
+			self.r1_kernel = r1_kernel_raw.view(
+		        self.anchor*4, self.feature_out, kernel_size, kernel_size)
+       	self.cls1_kernel = cls1_kernel_raw.view(
+               self.anchor*2, self.feature_out, kernel_size, kernel_size)
+       ```
+   - Forward
+       ```Python
+		def forward(self, x):
+           x_f = self.featureExtract(x)
+           return self.regress_adjust(
+        		F.conv2d(self.conv_r2(x_f), self.r1_kernel)), 
+       		F.conv2d(self.conv_cls2(x_f), self.cls1_kernel)
+       ```
+       
 ## Backward
 1. 新的训练数据
    <img src="./img/gaozhong_backward_01.png"  style="zoom:66%"  align="center"/>
