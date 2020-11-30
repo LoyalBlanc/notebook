@@ -25,7 +25,7 @@ GIM(geometrically invariant model, 几何不变) 计算一个粗略的分割结�
 
 GEM(geometrically constrained Euclidean model, 几何约束) 解决强干扰项的问题
 1. 当前帧特征经过降维后和模板特征执行DCF以获得互相关响应；
-2. 找到响应图上的argmax，按照欧氏距离生成定位L。
+2. 找到响应图上的argmax，按照欧氏距离生成定位L(Distance transform)。
 
 <img src="./img/gaozhong_forward_04.png"  style="zoom:66%"  align="center"/>
 
