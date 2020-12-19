@@ -1,29 +1,31 @@
-# MobileNets
-*(Not finished yet)*
+# ShuffleNets
 
 ## V1
-*MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications*
-
-MobileNet小和快的特性均由新的卷积方式来实现：Depthwise + Pointwise 替代了标准的卷积。
-
-文中有段话：“Often convolutions are implemented by a GEMM but require an initial reordering in memory called im2col in order to map it to a GEMM. …… 1×1 convolutions do not require this reordering in memory and can be implemented directly with GEMM which is one of the most optimized numerical linear algebra algorithms.”
-大致是说1×1的卷积由于无需在内存中重新排序相较其他的卷积运算可以更快，GEMM则是一个快速矩阵乘法的前向加速思路。我翻了翻感觉是个大坑就先跳过，以后有空可以https://www.jianshu.com/p/26f24f464016 跟着实现一下，或者直接https://github.com/flame/blislab 以及arXiv上翻论文。
-MobileNet采用了基于TensorFlow 的RMSprop算法进行训练。同时考虑到深度卷积的参数比较少，减少甚至取消了权重衰减/L2正则化以进一步缩小模型大小。
-相比标准卷积运算，MobileNet的运算量下降8~9倍(选用3×3的卷积核)，而准确度仅下降1％。同时文章发现在保证运算量大致相当的情况下，统一减少每层的通道数(Width Multiplier)比粗暴地减少网络的层数效果要好，也即其后文分析的两个超参数宽度因子和分辨率因子。
-
-## V2
-*MobileNetV2: Inverted Residuals and Linear Bottlenecks*
-
-Linear Bottlenecks，线性的瓶颈结构：即对于Bottleneck的最终输出，不使用ReLU6而是直接输出。文章中提到两点，其一，对于一个输出的非零值ReLU就相当于是线性变换，其二，ReLU能够保证输入信息不受损失的必要条件是：当且仅当输入数据在整个输入维度中属于某个子空间。在使用了MobileNetV1中的宽度因子进行缩减网络模型时，将特征集中在缩减后的通道里。但此时使用激活层ReLU将会有较大的信息损失(负元素置零)，因此选择使用线性输出。
+*ShuffleNet:  An Extremely Efficient Convolutional Neural Network for Mobile Devices*
 
 <img src="./img/gaozhong_forward_01.jpg"  style="zoom:80%"  align="center"/>
 
-显然维度越低对信息的损失就越大，ReLU对于负的输入值，输出为0，会造成信息的损失，导致特征被破坏。文中的实验也证实线性输出将比使用ReLU6提高0.5％的准确度。
-Inverted Residual block，逆向的残差结构：在ResNet和ShuffleNet中，Bottleneck均是“压缩→卷积获得特征→扩展”的策略，而在MobileNetV2中则选择了“扩展→卷积获得特征→压缩”的策略，也就是说Invert的是Bottleneck的结构。
+- 上图中的(a)是一个标准的Bottleneck单元，(b)则是将普通卷积替换为分组卷积并且添加了Shuffle操作的ShuffleNet模块，(c)将步长设为2，同时通过Concat一个平均池化层来弥补特征损失。
 
-<img src="./img/gaozhong_forward_02.jpg"  style="zoom:75%"  align="center"/>
+<img src="./img/gaozhong_forward_02.png"  style="zoom:75%"  align="center"/>
 
-从示意图中可以看到：1. Residual block结构没有被Invert(黑色箭头)，改变的是Bottleneck(明显变成了先升维后降维)；2. Bottleneck中间仍然保持着Depthwise Convolution和ReLU6的过程，但两次Pointwise Convolution的输出后面没有ReLU之类的激活函数了。
-考虑到压缩后卷积能够提取的特征相对会减少， MobileNetV2反其道而行，先扩张后压缩，这样差不多又提高了0.5％的准确度。同时MobileNetV2还将压缩后的ReLU6取消以减少信息损失。
+分组卷积(Group)可以理解为深度可分离卷积(Depthwise)的一个推广形式(实际上Group早在AlexNet时就已经出现)。图7中的(a)阐明了分局卷积的劣势在于输出的Feature map不能做到包含每一个输入的Feature map信息，(b)将分组卷积后的输出均分重排，使得输入输出通道完全相关，(c)给这个操作起了个名字叫Shuffle。
+1. 使用Group Convolution代替Depthwise Convolution，后者实际上是前者的一个Group=1的特例;
+2. 使用Shuffle操作代替Pointwise Convolution操作解决Feature Map的BUG，减少了大量1×1的卷积运算;
+3. 引入了ResNet中的Residual block和Bottleneck概念，用瓶颈结构学习残差函数进一步优化模型大小和准确性。
 
-## V3
+## V2
+*ShuffleNetV2: Practical Guidelines for Efficient CNN Architecture Design*
+
+四个基础实验结论如下：
+1. 拥有相同通道数的卷积层能得到最小的内存访问消耗时间(MAC)；
+2. 过多的group convolution会增加MAC；
+3. 网络分支将会降低并行度，因此在GPU这类设备上跑的时候速度慢；
+4. 元素操作(指矩阵加)消耗的时间不可被忽略。
+
+可以意识到ShuffleNetv1使用类似bottleneck的模块(结论1)和GConv(结论2)，MobileNetV2使用反转的bottleneck(结论1)并在更深的层上使用DWConv(结论4)，以及一些其他的网络高度分支化(结论3)，这些都将导致速度的降低。
+
+<img src="./img/gaozhong_forward_03.png"  style="zoom:75%"  align="center"/>
+
+基于上述实验结果，ShuffleNetV2被提出，它和ShuffleNetV1的模块区别见上图10。我们先对比图中的(a)和(c)：用Channel Split起到原先分组卷积的作用，并选择平分通道，对应上述结论1；将分组卷积换回了标准卷积，对应上述结论2；一侧通路上的数据未进行操作，对应上述结论3；用连接操作代替了元素和操作，对应上述结论4；将Channel Shuffle移至连接操作后，这是由于分组卷积已经换回标准卷积，没有Shuffle的必要，但连接后还是需要的。图中的(b)和(d)则是(a)和(c)增加步长后的变体。
+作者在对比大量不同的网络性能时，发现Xception在检测上做的比分类要好，原因可能是它拥有较大的感受野。因此在每个模块的第一个Pointwise前面，作者都添加了一个3×3的DWConv，速度肯定会受到影响，但是准确性提升了不少。
