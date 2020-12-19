@@ -13,5 +13,4 @@ Tag：对于包含k个元素的任意组别n，网络将会计算其均值hn，�
 
 ## Backward
 
-
 作者在文中写道：“It is important to note that the absolute values of the tags do not matter, only the distances between tags. That is, a network is free to assign arbitrary values to the tags as long as the values are the same for detections belonging to the same group.“也就是说，标签的值具体是多少无关紧要，只有不同标签之间的差异被重视，网络可以自由地为标签分配任意值，只要保证属于同一组的标签值尽可能相同。
